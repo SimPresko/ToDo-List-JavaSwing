@@ -10,7 +10,9 @@ public class MyFrame extends JFrame implements ActionListener{
     JLabel labelTitle;
     JPanel panelHeader;
     JButton buttonAdd;
+    JComboBox comboBox;
     JPanel panelTasks;
+    JScrollPane scrollPane;
     JTextField textField;
     String placeholder;
     File taskFile;
@@ -22,20 +24,23 @@ public class MyFrame extends JFrame implements ActionListener{
     MyFrame(){
         this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         this.setLayout(new BorderLayout());
-        this.setSize(600,642);
+        this.setSize(600,638);
         this.setResizable(false);
         placeholder="Enter task name";
 
         panelHeader = new JPanel();
         labelTitle = new JLabel("ToDo List");
         buttonAdd = new JButton("Add Task");
+        comboBox = new JComboBox(new String[]{"Daily","Weekly","Monthly","Yearly"});
         panelTasks = new JPanel();
         textField = new JTextField(20);
         taskFile = new File("list_of_tasks.txt");
         completedTaskFile = new File("list_of_completed_tasks.txt");
         taskList = new ArrayList<>();
         completedTaskList = new ArrayList<>();
-
+        scrollPane = new JScrollPane(panelTasks,
+                JScrollPane.VERTICAL_SCROLLBAR_ALWAYS,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
 
         fillListWithTxt(taskList,taskFile);
         fillListWithTxt(completedTaskList,completedTaskFile);
@@ -44,20 +49,21 @@ public class MyFrame extends JFrame implements ActionListener{
         panelHeader.setPreferredSize(new Dimension(600,150));
         panelHeader.setBackground(new Color(255,100,100));
         panelHeader.setLayout(null);
-        panelHeader.add(labelTitle,BorderLayout.WEST);
-        panelHeader.add(buttonAdd,BorderLayout.EAST);
-        panelHeader.add(textField,BorderLayout.CENTER);
+        panelHeader.add(labelTitle);
+        panelHeader.add(buttonAdd);
+        panelHeader.add(textField);
+        panelHeader.add(comboBox);
 
         labelTitle.setOpaque(true);
         labelTitle.setBackground(panelHeader.getBackground());
-        labelTitle.setBounds(175,0,250,80);
-        labelTitle.setFont(new Font("MV Boli",Font.BOLD,45));
+        labelTitle.setBounds(190,0,250,80);
+        labelTitle.setFont(new Font("Segoe UI",Font.BOLD,45));
         labelTitle.setHorizontalAlignment(JLabel.LEFT);
 
         buttonAdd.setFocusPainted(false);
-        buttonAdd.setBounds(345,80,150,50);
+        buttonAdd.setBounds(410,80,150,50);
         buttonAdd.setBackground(new Color(255,255,255));
-        buttonAdd.setFont(new Font("MV Boli",Font.PLAIN,25));
+        buttonAdd.setFont(new Font("Segoe UI",Font.PLAIN,25));
         buttonAdd.addActionListener(this);
         buttonAdd.addMouseListener(new MouseAdapter() {
             @Override
@@ -71,10 +77,18 @@ public class MyFrame extends JFrame implements ActionListener{
             }
         });
 
+        comboBox.setBounds(20,80,150,50);
+        comboBox.setFont(new Font("Segoe UI",Font.PLAIN,25));
+        comboBox.addActionListener((e)->  {
+                if (e.getSource()==comboBox){
+                    loadTasksOnPanel();
+                }
+        });
+
         textField.setText(placeholder);
         textField.setForeground(Color.gray);
-        textField.setBounds(125,85,200,40);
-        textField.setFont(new Font("MV Boli",Font.PLAIN,20));
+        textField.setBounds(190,85,200,40);
+        textField.setFont(new Font("Segoe UI",Font.PLAIN,20));
         textField.addFocusListener(new FocusListener() {
             @Override
             public void focusGained(FocusEvent e) {
@@ -100,11 +114,13 @@ public class MyFrame extends JFrame implements ActionListener{
         });
 
 
-        panelTasks.setBounds(150,200,600,600);
-        panelTasks.setLayout(new FlowLayout());
+        panelTasks.setPreferredSize(new Dimension(600,taskList.size()*49+6));
+        panelTasks.setLayout(new FlowLayout(FlowLayout.LEFT,10,9));
+
+        scrollPane.getVerticalScrollBar().setUnitIncrement(10);
 
 
-        this.add(panelTasks,BorderLayout.CENTER);
+        this.add(scrollPane);
         this.add(panelHeader,BorderLayout.NORTH);
         this.requestFocusInWindow();
         this.setTitle("ToDo List");
@@ -129,13 +145,13 @@ public class MyFrame extends JFrame implements ActionListener{
                     JOptionPane.WARNING_MESSAGE);
             textField.setForeground(Color.gray);
             textField.setText(placeholder);
-        } else if (taskList.size()>9){
-            JOptionPane.showMessageDialog(null,
-                    "Complete a task before adding a new one!", "Too many tasks",
+        } /*else if (taskList.size()>9){
+           JOptionPane.showMessageDialog(null,
+                   "Complete a task before adding a new one!", "Too many tasks",
                     JOptionPane.WARNING_MESSAGE);
             textField.setForeground(Color.gray);
             textField.setText(placeholder);
-        } else if(taskList.contains(textField.getText())){
+        }*/ else if(taskList.contains(textField.getText())){
             JOptionPane.showMessageDialog(null,
                     "This task already exists", "Duplicate Task",
                     JOptionPane.WARNING_MESSAGE);
@@ -145,7 +161,8 @@ public class MyFrame extends JFrame implements ActionListener{
         else{
             String taskName = textField.getText();
             textField.setText("");
-            taskList.add(taskName);
+            taskList.add(comboBox.getSelectedIndex()+taskName);
+            panelTasks.setPreferredSize(new Dimension(600,taskList.size()*49+6));
 
             this.updateTxtFile(taskList,taskFile);
             this.loadSingleTask(taskName);
@@ -158,15 +175,20 @@ public class MyFrame extends JFrame implements ActionListener{
 
     //Load all tasks on panelTasks
     private void loadTasksOnPanel(){
+        panelTasks.removeAll();
+        panelTasks.repaint();
         for (String task : taskList){
-            loadSingleTask(task);
+            if (task.charAt(0)==comboBox.getSelectedIndex()+'0'){
+                loadSingleTask(task.substring(1));
+            }
         }
+
     }
 
     //load a single task on panelTasks
     private void loadSingleTask(String task){
         JPanel innerPanel = new JPanel();
-        JLabel innerlabel = new JLabel(task);
+        JLabel innerLabel = new JLabel(task);
         JButton deleteButton = new JButton();
         JButton checkButton = new JButton();
         ImageIcon del = new ImageIcon("delete32.png");
@@ -189,15 +211,16 @@ public class MyFrame extends JFrame implements ActionListener{
             }
         };
 
-        innerlabel.setFont(new Font("MV Boli",Font.PLAIN,25));
-        innerlabel.setBounds(innerPanel.getX()+50,innerPanel.getY(),400,40);
-        innerlabel.setForeground(Color.black);
+        innerLabel.setFont(new Font("Segoe UI",Font.PLAIN,25));
+        innerLabel.setToolTipText(innerLabel.getText());
+        innerLabel.setBounds(innerPanel.getX()+50,innerPanel.getY(),400,40);
+        innerLabel.setForeground(Color.black);
 
         checkButton.setBounds(innerPanel.getX()+6,innerPanel.getY()+4,32,32);
         if (completedTaskList.contains(task)){
             checkButton.setIcon(checkBoxFilled);
-            innerlabel.setForeground(Color.gray);
-            innerlabel.setText("<html><s>" + innerlabel.getText()+ "<s></html");
+            innerLabel.setForeground(Color.gray);
+            innerLabel.setText("<html><s>" + innerLabel.getText()+ "<s></html");
         } else{
             checkButton.setIcon(checkBoxBlank);
             checkButton.addMouseListener(mouseAdapter);
@@ -205,16 +228,13 @@ public class MyFrame extends JFrame implements ActionListener{
         checkButton.setFocusable(false);
         checkButton.setBackground(null);
         checkButton.setBorder(null);
-        checkButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
+        checkButton.addActionListener((e)-> {
                 checkButton.removeMouseListener(mouseAdapter);
                 checkButton.setIcon(checkBoxFilled);
                 completedTaskList.add(task);
                 updateTxtFile(completedTaskList,completedTaskFile);
-                innerlabel.setForeground(Color.gray);
-                innerlabel.setText("<html><s>" + innerlabel.getText()+ "<s></html");
-            }
+                innerLabel.setForeground(Color.gray);
+                innerLabel.setText("<html><s>" + innerLabel.getText()+ "<s></html");
         });
 
         deleteButton.setBounds(innerPanel.getX()+500,innerPanel.getY()+4,32,32);
@@ -233,19 +253,17 @@ public class MyFrame extends JFrame implements ActionListener{
                 deleteButton.setIcon(del);
             }
         });
-        deleteButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                taskList.remove(task);
+        deleteButton.addActionListener((e)->  {
+                taskList.remove(comboBox.getSelectedIndex()+task);
+                panelTasks.setPreferredSize(new Dimension(600,taskList.size()*49+6));
                 updateTxtFile(taskList,taskFile);
                 panelTasks.remove(innerPanel);
                 panelTasks.revalidate();
                 panelTasks.repaint();
-            }
         });
 
         innerPanel.add(checkButton);
-        innerPanel.add(innerlabel);
+        innerPanel.add(innerLabel);
         innerPanel.add(deleteButton);
         innerPanel.setLayout(null);
         innerPanel.setBackground(Color.lightGray);
