@@ -138,39 +138,40 @@ public class MyFrame extends JFrame implements ActionListener{
         }
     }
 
-    //Function to add a task (When enter is pressed or when button is clicked)
+    //Function to add a task (When enter is pressed or when button is clicked) - normal task version
     private void addTaskFunc(){
-        if (textField.getText().isEmpty()||textField.getText().equals(placeholder)){
+        if (textField.getText().isEmpty()||textField.getText().equals(placeholder)) {
             JOptionPane.showMessageDialog(null,
                     "Please enter a valid task name", "Blank task",
                     JOptionPane.WARNING_MESSAGE);
             textField.setForeground(Color.gray);
             textField.setText(placeholder);
-        } /*else if (taskList.size()>9){
-           JOptionPane.showMessageDialog(null,
-                   "Complete a task before adding a new one!", "Too many tasks",
-                    JOptionPane.WARNING_MESSAGE);
-            textField.setForeground(Color.gray);
-            textField.setText(placeholder);
-        }*/ else if(taskList.contains(textField.getText())){
-            JOptionPane.showMessageDialog(null,
-                    "This task already exists", "Duplicate Task",
-                    JOptionPane.WARNING_MESSAGE);
-            textField.setForeground(Color.gray);
-            textField.setText(placeholder);
-        }
-        else{
+        } else{
             String taskName = textField.getText();
             textField.setText("");
             taskList.add(comboBox.getSelectedIndex()+taskName);
             panelTasks.setPreferredSize(new Dimension(700,taskList.size()*49+6));
 
             this.updateTxtFile(taskList,taskFile);
-            this.loadSingleTask(taskName);
+            this.loadSingleTask(taskName,false);
 
             textField.setText(placeholder);
             textField.setForeground(Color.GRAY);
             SwingUtilities.invokeLater(() ->buttonAdd.requestFocusInWindow());
+        }
+    }
+    //Function to add a task - subtask version
+    private void addTaskFunc(String taskName,int index){
+        if (taskName.isEmpty()||taskName.equals(placeholder)){
+            JOptionPane.showMessageDialog(null,
+                    "Please enter a valid task name", "Blank task",
+                    JOptionPane.WARNING_MESSAGE);
+        } else{
+            taskList.add(index,comboBox.getSelectedIndex()+"   "+taskName);
+            panelTasks.setPreferredSize(new Dimension(700,taskList.size()*49+6));
+
+            this.updateTxtFile(taskList,taskFile);
+            this.loadTasksOnPanel();
         }
     }
 
@@ -179,23 +180,22 @@ public class MyFrame extends JFrame implements ActionListener{
         panelTasks.removeAll();
         panelTasks.repaint();
         for (String task : taskList){
-            if (task.charAt(0)==comboBox.getSelectedIndex()+'0'){
-                loadSingleTask(task.substring(1));
-            }
+            if (task.charAt(0)==comboBox.getSelectedIndex()+'0')
+                if (task.startsWith("   ", 1)) loadSingleTask(task.substring(4),true);
+                else loadSingleTask(task.substring(1), false);
         }
-
     }
 
     //load a single task on panelTasks
-    private void loadSingleTask(String task){
+    private void loadSingleTask(String task, boolean subTask){
         //initialization
         JPanel innerPanel = new JPanel();
         JLabel innerLabel = new JLabel(task);
+        JLabel blankBox = new JLabel();
         JButton deleteButton = new JButton();
         JButton checkButton = new JButton();
         JButton editButton = new JButton();
         JButton sendButton = new JButton();
-        JComboBox<String> sendComboBox = new JComboBox<>(catArr);
         ImageIcon del = new ImageIcon("icons/delete32.png");
         ImageIcon delHov = new ImageIcon("icons/deleteHover32.png");
         ImageIcon checkBoxBlank = new ImageIcon("icons/unchecked.png");
@@ -223,12 +223,22 @@ public class MyFrame extends JFrame implements ActionListener{
         //Task name label
         innerLabel.setFont(new Font("Segoe UI",Font.PLAIN,25));
         innerLabel.setToolTipText(innerLabel.getText());
-        innerLabel.setBounds(innerPanel.getX()+50,innerPanel.getY(),470,40);
+        innerLabel.setBounds(subTask?innerPanel.getX()+82:innerPanel.getX()+50,innerPanel.getY(),subTask?448:470,40);
         innerLabel.setForeground(Color.black);
 
         //Button for checking a task
-        checkButton.setBounds(innerPanel.getX()+6,innerPanel.getY()+4,32,32);
+        checkButton.setBounds(subTask?innerPanel.getX()+38:innerPanel.getX()+6,innerPanel.getY()+4,32,32);
         if (completedTaskList.contains(task)){
+            if (!subTask){
+                int index = taskList.indexOf(comboBox.getSelectedIndex()+task);
+                while (taskList.size()>++index
+                        &&!completedTaskList.contains(taskList.get(index).substring(4))
+                        &&taskList.get(index).startsWith(comboBox.getSelectedIndex()+ "   ")){
+                    completedTaskList.add(taskList.get(index).substring(4));
+                    updateTxtFile(completedTaskList,completedTaskFile);
+                }
+            }
+
             checkButton.setIcon(checkBoxFilled);
             innerLabel.setForeground(Color.gray);
             innerLabel.setText("<html><s>" + innerLabel.getText()+ "<s></html");
@@ -248,9 +258,7 @@ public class MyFrame extends JFrame implements ActionListener{
                 updateTxtFile(completedTaskList,completedTaskFile);
                 innerLabel.setForeground(Color.gray);
                 innerLabel.setText("<html><s>" + innerLabel.getText()+ "<s></html");
-                innerPanel.remove(editButton);
-                innerPanel.revalidate();
-                innerPanel.repaint();
+                loadTasksOnPanel();
             }
         });
         //Button for editing a task
@@ -271,55 +279,65 @@ public class MyFrame extends JFrame implements ActionListener{
             }
         });
         editButton.addActionListener((e)->{
-            editTask(innerLabel,innerPanel);
+            editTask(innerLabel,innerPanel,subTask);
         });
 
 
         //Button for sending a task to another category
-        sendButton.setBounds(innerPanel.getX()+520,innerPanel.getY()+4,32,32);
-        sendButton.setIcon(send);
-        sendButton.setFocusPainted(false);
-        sendButton.setBackground(null);
-        sendButton.setBorder(null);
-        sendButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseEntered(MouseEvent e) {
-                sendButton.setIcon(sendHover);
-            }
+        if (!subTask){
+            sendButton.setBounds(innerPanel.getX()+520,innerPanel.getY()+4,32,32);
+            sendButton.setIcon(send);
+            sendButton.setFocusPainted(false);
+            sendButton.setBackground(null);
+            sendButton.setBorder(null);
+            sendButton.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseEntered(MouseEvent e) {
+                    sendButton.setIcon(sendHover);
+                }
 
-            @Override
-            public void mouseExited(MouseEvent e) {
-                sendButton.setIcon(send);
-            }
-        });
-        //Display combobox options when edit button is clicked
-        sendButton.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseReleased(MouseEvent e) {
-                JPopupMenu menu = new JPopupMenu();
-                for (int i = 0;i<catArr.length;i++) {
-                    if (i == comboBox.getSelectedIndex()) continue;
-                    else{
-                        int j = i;
-                        JMenuItem item = new JMenuItem(catArr[i]);
-                        menu.add(item);
-                        item.addActionListener(new ActionListener() {
-                            @Override
-                            public void actionPerformed(ActionEvent e) {
-                                removeTask(task,innerPanel,j);
-                            }
-                        });
+                @Override
+                public void mouseExited(MouseEvent e) {
+                    sendButton.setIcon(send);
+                }
+            });
+
+            //Display a menu of options when send button is clicked
+            sendButton.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseReleased(MouseEvent e) {
+                    JPopupMenu menu = new JPopupMenu();
+                    JMenu sendTo = new JMenu("Send to");
+                    JMenuItem addSubtask = new JMenuItem("Add subtask");
+
+                    addSubtask.addActionListener((e1)->{
+                        String taskName = JOptionPane.showInputDialog(null,"Enter task name",null);
+                        int index = taskList.indexOf(comboBox.getSelectedIndex()+task);
+                        addTaskFunc(taskName,++index);
+                    });
+
+                    menu.add(sendTo);
+                    menu.add(addSubtask);
+                    for (int i = 0;i<catArr.length;i++) {
+                        if (i == comboBox.getSelectedIndex()) continue;
+                        else{
+                            int j = i;
+                            JMenuItem item = new JMenuItem(catArr[i]);
+                            sendTo.add(item);
+                            item.addActionListener(new ActionListener() {
+                                @Override
+                                public void actionPerformed(ActionEvent e) {
+                                    removeTask(task,innerPanel,j);
+                                }
+                            });
+                        }
+                    }
+                    if (e.getButton()==1){
+                        menu.show(e.getComponent(),e.getX(),e.getY());
                     }
                 }
-                if (e.getButton()==1){
-                    menu.show(e.getComponent(),e.getX(),e.getY());
-                }
-            }
-        });
-
-        //Menu comboBox to pick to which category should the task go
-        sendComboBox.setVisible(false);
-        sendComboBox.setBounds(sendButton.getX()+32,sendButton.getY()+32,150,30);
+            });
+        }
 
         //Button for deleting a task
         deleteButton.setBounds(innerPanel.getX()+600,innerPanel.getY()+4,32,32);
@@ -339,15 +357,20 @@ public class MyFrame extends JFrame implements ActionListener{
             }
         });
         deleteButton.addActionListener((e)->  {
-            removeTask(task,innerPanel);
+            removeTask(task,innerPanel,subTask);
         });
 
 
         //adding all elements to the inner panel
         innerPanel.add(checkButton);
         innerPanel.add(innerLabel);
-        innerPanel.add(sendButton);
-        innerPanel.add(sendComboBox);
+        if (!subTask) innerPanel.add(sendButton);
+        if (subTask){
+            blankBox.setBounds(innerPanel.getX(),innerPanel.getY(),32,40);
+            blankBox.setOpaque(true);
+            blankBox.setBackground(new Color(238,238,238));
+            innerPanel.add(blankBox);
+        }
         if (!completedTaskList.contains(task)) innerPanel.add(editButton);
         innerPanel.add(deleteButton);
         innerPanel.setLayout(null);
@@ -361,27 +384,49 @@ public class MyFrame extends JFrame implements ActionListener{
     }
 
     //Remove a task from the task panel and update txt file and list
-    private void removeTask(String task, JPanel innerPanel){
-        taskList.remove(comboBox.getSelectedIndex()+task);
+    private void removeTask(String task, JPanel innerPanel,boolean subTask){
+        int index;
+        if (subTask) {
+            index = taskList.indexOf(comboBox.getSelectedIndex()+"   "+task);
+            taskList.remove(comboBox.getSelectedIndex()+"   "+task);
+        }
+        else {
+            index = taskList.indexOf(comboBox.getSelectedIndex()+task);
+            taskList.remove(comboBox.getSelectedIndex()+task);
+        }
+        if (!subTask){
+            while(taskList.size()>index&&taskList.get(index).startsWith(comboBox.getSelectedIndex()+"   ")){
+                completedTaskList.remove(taskList.get(index).substring(4));
+                taskList.remove(index);
+            }
+        }
+
+
         panelTasks.setPreferredSize(new Dimension(700,taskList.size()*49+6));
+        completedTaskList.remove(task);
+        updateTxtFile(completedTaskList,completedTaskFile);
         updateTxtFile(taskList,taskFile);
-        panelTasks.remove(innerPanel);
-        panelTasks.revalidate();
-        panelTasks.repaint();
+        loadTasksOnPanel();
     }
 
     //Remove a task from the task panel, update txt file and list also send this task to another category
     private void removeTask(String task, JPanel innerPanel, int i){
+        int index = taskList.indexOf(comboBox.getSelectedIndex()+task);
+
         taskList.remove(comboBox.getSelectedIndex()+task);
         taskList.add(i+task);
+
+        while(taskList.size()>index&&taskList.get(index).startsWith(comboBox.getSelectedIndex()+"   ")){
+            taskList.add(i+taskList.get(index).substring(1));
+            taskList.remove(index);
+        }
+
         panelTasks.setPreferredSize(new Dimension(700,taskList.size()*49+6));
         updateTxtFile(taskList,taskFile);
-        panelTasks.remove(innerPanel);
-        panelTasks.revalidate();
-        panelTasks.repaint();
+        loadTasksOnPanel();
     }
 
-    private void editTask(JLabel label, JPanel innerPanel){
+    private void editTask(JLabel label, JPanel innerPanel, boolean subTask){
         String task = label.getText();
         JTextField editField = new JTextField();
 
@@ -399,9 +444,16 @@ public class MyFrame extends JFrame implements ActionListener{
                         label.setText(editField.getText());
                         label.setToolTipText(label.getText());
                         innerPanel.add(label);
-                        taskList.add(taskList.indexOf(comboBox.getSelectedIndex()+task),
-                                comboBox.getSelectedIndex()+editField.getText());
-                        taskList.remove(comboBox.getSelectedIndex()+task);
+                        if (subTask) {
+                            taskList.add(taskList.indexOf(comboBox.getSelectedIndex()+"   "+task),
+                                    comboBox.getSelectedIndex()+"   "+editField.getText());
+                            taskList.remove(comboBox.getSelectedIndex()+"   "+task);
+                        }else{
+                            taskList.add(taskList.indexOf(comboBox.getSelectedIndex()+task),
+                                    comboBox.getSelectedIndex()+editField.getText());
+                            taskList.remove(comboBox.getSelectedIndex()+task);
+                        }
+
                         updateTxtFile(taskList,taskFile);
                         innerPanel.revalidate();
                         innerPanel.repaint();
